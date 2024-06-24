@@ -1,0 +1,23 @@
+on init
+    # split minidump and full ramdump
+    setprop ro.vendor.aee.splict_framdump yes
+
+service vendor.apanic_annotate /vendor/bin/apanic_mtk.sh
+    class late_start
+    user root
+    group log
+    oneshot
+    disabled
+
+on property:ro.boot.bootreason=kernel_panic
+    setprop ro.vendor.boot.apanic.reason "boot"
+    start vendor.apanic_annotate
+
+on property:ro.boot.bootreason=watchdog
+    setprop ro.vendor.boot.apanic.reason "boot"
+    start vendor.apanic_annotate
+
+on property:vendor.debug.mtk.aeev.db=*
+    setprop ro.vendor.boot.apanic.reason "prop"
+    setprop ro.vendor.boot.apanic.prop "1"
+    start vendor.apanic_annotate

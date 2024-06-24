@@ -1,0 +1,17 @@
+import /vendor/etc/init/hw/init.mmi.backup.trustlet.rc
+
+#insmod usbnet.ko when on factory mode
+on early-init && property:ro.boot.atm=enable && property:ro.bootmode=mot-factory
+    insmod /vendor/lib/modules/moto_f_usbnet.ko
+
+on early-init
+    insmod /vendor/lib/modules/mmi_info.ko
+
+on early-boot && property:ro.vendor.build.motfactory=1
+    wait /sys/devices/platform/moto_chg_tcmd/force_chg_usb_suspend
+    chown system system /sys/devices/platform/moto_chg_tcmd/force_chg_usb_suspend
+
+on boot
+    write /sys/block/sdc/queue/scheduler bfq
+    write /sys/block/sdc/queue/iosched/slice_idle 0
+

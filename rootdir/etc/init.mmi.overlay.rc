@@ -1,0 +1,205 @@
+on early-init
+    exec_background u:r:vendor_modprobe:s0 -- /vendor/bin/modprobe -a -d /vendor/lib/modules mmi_gauge_class nfg1000_fg_mmi smart_battery qpnp_adaptive_charge sensors_class leds-gpio awinic_sar sx937x_sar moto_mmap_fault
+
+on early-init && property:ro.boot.radio=4
+    setprop ro.vendor.hw.fuelgauge int_fg
+
+on early-init && property:ro.boot.radio=DOCOMO
+    setprop ro.vendor.hw.fuelgauge int_fg
+
+on init
+    setprop ro.vendor.hw.fuelgauge ext_fg
+
+on post-fs-data
+    wait /sys/class/leds/vibrator/trigger 1.5
+    write /sys/class/leds/vibrator/trigger "transient"
+    # calibration
+    mkdir /data/vendor/sensor 0774 system system
+    # Sensor
+    chmod 0660 /dev/hf_manager
+    chown system system /dev/hf_manager
+
+    # config fingerprint
+    mkdir /data/vendor/.fps 0770 system vendor_fingerp
+    mkdir /mnt/vendor/persist/fps 0770 system system
+    mkdir /data/vendor/egis 0770 system vendor_fingerp
+    mkdir /data/vendor/egis/cqa 0770 system vendor_fingerp
+    mkdir /mnt/vendor/persist/egis 0770 system vendor_fingerp
+    mkdir /mnt/vendor/persist/goodix 0770 system vendor_fingerp
+    mkdir /data/vendor/gf_data 0770 system system
+
+    # Add for OIS hall test result
+    mkdir /mnt/vendor/persist/camera/ois_hall 0770 vendor_tcmd camera
+
+    # Required by touchRec for write the touch data
+    mkdir /data/vendor/touchrec 0770 input input
+    chown input input /data/vendor/touchrec/bootindex
+    chown input input /data/vendor/touchrec/lastbootuuid
+    chown input input /data/vendor/touchrec/touch_data.txt
+    chmod 0664 /data/vendor/touchrec/touch_data.txt
+
+    # change dir permission
+    mkdir /data/vendor/camera_dump
+    chown root camera /data/vendor/camera_dump
+    chmod 0770 /data/vendor/camera_dump
+
+    # change camera sois save hall data
+    mkdir /mnt/vendor/persist/camera/ois_hall_data 0770 vendor_tcmd camera
+
+on late-init
+    exec u:r:vendor_modprobe:s0 -- /vendor/bin/modprobe -r -d /vendor/lib/modules zram
+    #moto algo params
+    chmod 0660 /sys/bus/platform/drivers/mtk_nanohub/algo_params
+    chown system system /sys/bus/platform/drivers/mtk_nanohub/algo_params
+
+    chown system system /sys/class/sensors/capsense_bottom_left/enable
+    chown system system /sys/class/sensors/capsense_bottom_left/poll_delay
+    chown system system /sys/class/sensors/capsense_bottom_right/enable
+    chown system system /sys/class/sensors/capsense_bottom_right/poll_delay
+    chown system system /sys/class/sensors/capsense_top_left/enable
+    chown system system /sys/class/sensors/capsense_top_left/poll_delay
+    chown system system /sys/class/sensors/capsense_top_mid/enable
+    chown system system /sys/class/sensors/capsense_top_mid/poll_delay
+    chown system system /sys/class/sensors/capsense_top_right/enable
+    chown system system /sys/class/sensors/capsense_top_right/poll_delay
+    exec u:r:vendor_modprobe:s0 -- /vendor/bin/modprobe -a -d /vendor/lib/modules moto_mm moto_swap
+
+service capsense_reset /vendor/bin/capsense_reset
+    class core
+    user system
+    group system input
+    disabled
+
+service nxpnfcinfo /system/vendor/bin/nxpnfcinfo
+    class late_start
+    group nfc
+    user system
+    oneshot
+
+on property:ro.vendor.hw.nfc=nq
+   insmod /vendor/lib/modules/nxp_i2c.ko
+   wait /dev/nq-nci
+   chown nfc nfc /dev/nq-nci
+   chmod 0666 /dev/nq-nci
+
+on property:ro.vendor.hw.nfc=ese_nq
+   insmod /vendor/lib/modules/nxp_i2c.ko
+   insmod /vendor/lib/modules/nxp_ese.ko
+   wait /dev/nq-nci
+   chown nfc nfc /dev/nq-nci
+   chmod 0666 /dev/nq-nci
+   wait /dev/p73
+   chown secure_element secure_element /dev/p73
+   chmod 0666 /dev/p73
+
+on property:sys.boot_completed=1
+    start capsense_reset
+    chown system system /sys/class/touchscreen/primary/stylus_mode
+    chmod 0660 /sys/class/touchscreen/primary/stylus_mode
+    chown system system /sys/class/touchscreen/primary/stowed
+    chmod 0660 /sys/class/touchscreen/primary/stowed
+    write /proc/sys/vm/dirty_background_bytes 26214400
+    write /proc/sys/vm/dirty_bytes 104857600
+
+# Turn on led to indicate device on in factory mode
+on property:ro.bootmode=mot-factory
+    write /sys/class/leds/charging/brightness 255
+
+on early-boot
+    # Permission for Health Storage HAL
+    chown system system /sys/devices/platform/112b0000.ufshci/manual_gc
+    chown system system /sys/devices/platform/112b0000.ufshci/ufshid/trigger
+
+on boot
+    # change permission for capsensor
+    chown system system /sys/class/capsense/reset
+    chown system system /sys/class/capsense/int_state
+    chown radio system /sys/class/capsense/reg
+    chown radio system /sys/class/capsense/fw_download_status
+    chown system system /sys/class/capsense/mode
+    chmod 0660 /sys/class/capsense/reset
+    chmod 0660 /sys/class/capsense/int_state
+    chmod 0660 /sys/class/capsense/reg
+    chmod 0660 /sys/class/capsense/fw_download_status
+    chmod 0660 /sys/class/capsense/mode
+
+    # Change ownership and permission for charge pump factory testing
+    chown system system /sys/class/power_supply/cp-master/voltage_now
+    chown system system /sys/class/power_supply/cp-master/device/force_chg_auto_enable
+    chown system system /sys/class/power_supply/cp-slave/device/force_chg_auto_enable
+    chmod 0644 /sys/class/power_supply/cp-master/voltage_now
+    chmod 0664 /sys/class/power_supply/cp-master/device/force_chg_auto_enable
+    chmod 0664 /sys/class/power_supply/cp-slave/device/force_chg_auto_enable
+
+    chown system system /sys/class/power_supply/cp-standalone/voltage_now
+    chown system system /sys/class/power_supply/cp-standalone/device/force_chg_auto_enable
+    chmod 0644 /sys/class/power_supply/cp-standalone/voltage_now
+    chmod 0664 /sys/class/power_supply/cp-standalone/device/force_chg_auto_enable
+
+# Set adaptive charging perms for HAL
+    chown system system /sys/module/qpnp_adaptive_charge/parameters/upper_limit
+    chown system system /sys/module/qpnp_adaptive_charge/parameters/lower_limit
+    # touch api
+    chown system system /sys/class/touchscreen/primary/interpolation
+    chmod 0660 /sys/class/touchscreen/primary/interpolation
+    chown system system /sys/class/touchscreen/primary/first_filter
+    chmod 0660 /sys/class/touchscreen/primary/first_filter
+    chown system system /sys/class/touchscreen/primary/edge
+    chmod 0660 /sys/class/touchscreen/primary/edge
+    chown system system /sys/class/touchscreen/primary/gesture
+    chmod 0660 /sys/class/touchscreen/primary/gesture
+    chown system system /sys/class/touchscreen/primary/sample
+    chmod 0660 /sys/class/touchscreen/primary/sample
+
+    # change permission for goodix TP
+    chmod 0664 /dev/gtp_tools
+
+    # set aw smart pa node can be accessed by audio group
+    chown root audio /sys/devices/platform/11e02000.i2c/i2c-6/6-0035/cali_re
+    chmod 0664 /sys/devices/platform/11e02000.i2c/i2c-6/6-0035/cali_re
+
+
+on fs
+    exec_background u:r:vendor_modprobe:s0 -- /vendor/bin/modprobe -a -d /vendor/lib/modules mmi_relay touchscreen_mmi goodix_brl_mmi focaltech_v3
+
+# camera eeprom calibration
+on property:sys.boot_completed=1
+    chmod 0644 /data/vendor/camera_dump/mot_ov50a_eeprom.bin
+    chmod 0644 /data/vendor/camera_dump/mot_hi1336_eeprom.bin
+    chmod 0644 /data/vendor/camera_dump/mot_ov32b_eeprom.bin
+
+# Batt_health init
+on post-fs-data
+    # for batt_health server
+    mkdir /mnt/vendor/persist/batt_health 0770 vendor_pwric vendor_pwric
+on property:sys.boot_completed=1 && property:ro.build.type=userdebug
+    start vendor.batt_health
+on charger && property:ro.build.type=userdebug
+    start vendor.batt_health
+service vendor.batt_health /vendor/bin/batt_health
+    class late_start
+    user vendor_pwric
+    group vendor_pwric cache net_admin log
+    disabled
+
+on moto-post-fs-data-fs-tune
+    write /sys/block/${dev.mnt.dev.root}/queue/read_ahead_kb 2048
+    write /sys/block/${dev.mnt.dev.system_ext}/queue/read_ahead_kb 2048
+    write /sys/block/${dev.mnt.dev.product}/queue/read_ahead_kb 2048
+    write /sys/block/${dev.mnt.dev.vendor}/queue/read_ahead_kb 2048
+    write /sys/block/${dev.mnt.dev.vendor_dlkm}/queue/read_ahead_kb 2048
+    write /sys/block/${dev.mnt.dev.data}/queue/read_ahead_kb 2048
+
+on moto-boot-completed-fs-tune
+    write /sys/block/dm-0/queue/read_ahead_kb 512
+    write /sys/block/dm-1/queue/read_ahead_kb 512
+    write /sys/block/dm-2/queue/read_ahead_kb 512
+    write /sys/block/dm-3/queue/read_ahead_kb 512
+    write /sys/block/dm-4/queue/read_ahead_kb 512
+    write /sys/block/dm-5/queue/read_ahead_kb 512
+    write /sys/block/${dev.mnt.dev.root}/queue/read_ahead_kb 512
+    write /sys/block/${dev.mnt.dev.system_ext}/queue/read_ahead_kb 512
+    write /sys/block/${dev.mnt.dev.product}/queue/read_ahead_kb 512
+    write /sys/block/${dev.mnt.dev.vendor}/queue/read_ahead_kb 512
+    write /sys/block/${dev.mnt.dev.vendor_dlkm}/queue/read_ahead_kb 512
+    write /sys/block/${dev.mnt.dev.data}/queue/read_ahead_kb 512
