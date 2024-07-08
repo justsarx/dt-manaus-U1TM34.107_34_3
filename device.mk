@@ -113,8 +113,6 @@ PRODUCT_PACKAGES += \
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/rootdir/etc/fstab.mt6879:$(TARGET_VENDOR_RAMDISK_OUT)/first_stage_ramdisk/fstab.mt6879
 
-vintf_fragments += \
-    vendor/motorola/manaus/proprietary/odm/etc/vintf/manifest_be.xml
 
 # Soong namespaces
 PRODUCT_SOONG_NAMESPACES += \
